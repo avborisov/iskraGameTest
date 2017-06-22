@@ -62,7 +62,7 @@ public class CheckStatusTask implements Runnable {
             }
 
             if (checkIfAllPlayersAvailable(playersStatusList)) {
-                System.out.println("You can play now!");
+                System.out.println("All players are available! You can play now!");
                 System.out.println();
             } else {
                 System.out.println("Not all players are available...");
