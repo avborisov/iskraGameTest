@@ -9,6 +9,6 @@ public class Main {
                 "lenny", "etch", "sarge", "woody", "potato", "slink", "hamm"};
 
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-        executor.scheduleWithFixedDelay(new CheckStatusTask(players), 0,5, TimeUnit.SECONDS);
+        executor.scheduleWithFixedDelay(new FindNotReadyPlayersTask(players), 0,5, TimeUnit.SECONDS);
     }
 }

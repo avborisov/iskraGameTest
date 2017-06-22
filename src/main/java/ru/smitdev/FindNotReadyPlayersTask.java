@@ -13,37 +13,42 @@ import java.util.*;
 import java.util.concurrent.*;
 
 /**
- * {@link CheckStatusTask} проверяет доступность игроков и сообщает о результате проверки.
+ * {@link FindNotReadyPlayersTask} проверяет доступность игроков и сообщает о результате проверки.
  * Запускает дочерние потоки {@link PlayerStatusTester} для ассинхронной проверки статусов.
  * Список игроков должен быть передан объекту при его инициализации.
  */
-public class CheckStatusTask implements Runnable {
+public class FindNotReadyPlayersTask implements Runnable {
 
     public static final String STATUS_AWAY = "AWAY";
     public static final String STATUS_BUSY = "BUSY";
     public static final String STATUS_READY = "READY";
     public static final String STATUS_OFFLINE = "OFFLINE";
 
+    private static final int TIMEOUT = 5;
+    private static HttpClientBuilder httpClientBuilder = initHttpClientBuilder();
+
     private String[] playersList;
 
     /**
      * @param playersList список игроков для проверки доступности
      */
-    public CheckStatusTask(String[] playersList) {
+    public FindNotReadyPlayersTask(String[] playersList) {
         this.playersList = playersList;
+
     }
 
     public void run() {
+
         System.out.println(new Date() + ": " + "Check players status...");
 
-        ExecutorService executor = Executors.newFixedThreadPool(playersList.length);
+        ExecutorService fixedThreadPool = Executors.newFixedThreadPool(playersList.length);
         try {
             List<Future<String[]>> list = new ArrayList<Future<String[]>>();
 
             for (int i = 0; i < playersList.length; i++) {
                 Callable<String[]> callable = new PlayerStatusTester(playersList[i]);
 
-                Future<String[]> future = executor.submit(callable);
+                Future<String[]> future = fixedThreadPool.submit(callable);
                 list.add(future);
             }
 
@@ -65,11 +70,12 @@ public class CheckStatusTask implements Runnable {
                 System.out.println("All players are available! You can play now!");
                 System.out.println();
             } else {
-                System.out.println("Not all players are available...");
+                System.out.println("Not all players are available:");
+                showNotReadyPlayersStatus(playersStatusList);
                 System.out.println();
             }
         } finally {
-            executor.shutdown();
+            fixedThreadPool.shutdown();
         }
 
     }
@@ -83,9 +89,8 @@ public class CheckStatusTask implements Runnable {
     private static boolean checkIfAllPlayersAvailable(Map<String, String> playersStatusMap) {
         boolean isAllPlayersAvailable = true;
         for (Map.Entry<String, String> playersStatusEntry : playersStatusMap.entrySet()) {
-            if (!playersStatusEntry.getValue().equals(CheckStatusTask.STATUS_READY)) {
+            if (!playersStatusEntry.getValue().equals(FindNotReadyPlayersTask.STATUS_READY)) {
                 isAllPlayersAvailable = false;
-                showPlayersStatus(playersStatusMap);
                 break;
             }
         }
@@ -93,15 +98,27 @@ public class CheckStatusTask implements Runnable {
     }
 
     /**
-     * Вывод статуса всех игроков
+     * Вывод статуса недоступных игроков
      *
      * @param playersStatusMap - Map, в котором содержатся пары "Игрок - текущий статус".
      */
-    private static void showPlayersStatus(Map<String, String> playersStatusMap) {
+    private static void showNotReadyPlayersStatus(Map<String, String> playersStatusMap) {
         for (Map.Entry<String, String> entry : playersStatusMap.entrySet()) {
-            System.out.println(entry.getKey() + " status: " + entry.getValue());
+            String status = entry.getValue();
+            if (!status.equals(STATUS_READY)) {
+                System.out.println(entry.getKey() + " status: " + entry.getValue());
+            }
         }
         System.out.println();
+    }
+
+    private static HttpClientBuilder initHttpClientBuilder() {
+        RequestConfig requestConfig = RequestConfig.custom()
+                .setConnectionRequestTimeout(1000 * TIMEOUT)
+                .setConnectTimeout(1000 * TIMEOUT)
+                .setSocketTimeout(1000 * TIMEOUT)
+                .build();
+        return HttpClientBuilder.create().setDefaultRequestConfig(requestConfig);
     }
 
     /**
@@ -110,7 +127,6 @@ public class CheckStatusTask implements Runnable {
     private class PlayerStatusTester implements Callable<String[]> {
 
         private final String URL = "http://rd.iskrauraltel.ru:33388/simple-test/";
-        private final int TIMEOUT = 5;
         private String player;
 
         /**
@@ -121,13 +137,7 @@ public class CheckStatusTask implements Runnable {
         }
 
         public String[] call() throws Exception {
-            RequestConfig requestConfig = RequestConfig.custom()
-                    .setConnectionRequestTimeout(1000 * TIMEOUT)
-                    .setConnectTimeout(1000 * TIMEOUT)
-                    .setSocketTimeout(1000 * TIMEOUT)
-                    .build();
-            HttpClientBuilder builder = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig);
-            CloseableHttpClient httpClient = builder.build();
+            CloseableHttpClient httpClient = httpClientBuilder.build();
 
             HttpGet request = new HttpGet(URL + player);
             HttpResponse response;
