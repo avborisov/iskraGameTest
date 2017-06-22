@@ -12,6 +12,11 @@ import java.io.InputStreamReader;
 import java.util.*;
 import java.util.concurrent.*;
 
+/**
+ * {@link CheckStatusTask} проверяет доступность игроков и сообщает о результате проверки.
+ * Запускает дочерние потоки {@link PlayerStatusTester} для ассинхронной проверки статусов.
+ * Список игроков должен быть передан объекту при его инициализации.
+ */
 public class CheckStatusTask implements Runnable {
 
     public static final String STATUS_AWAY = "AWAY";
@@ -21,16 +26,17 @@ public class CheckStatusTask implements Runnable {
 
     private String[] playersList;
 
+    /**
+     * @param playersList список игроков для проверки доступности
+     */
     public CheckStatusTask(String[] playersList) {
         this.playersList = playersList;
     }
 
     public void run() {
-
-        System.out.println(new Date()+ ": " + "Check players status...");
+        System.out.println(new Date() + ": " + "Check players status...");
 
         ExecutorService executor = Executors.newFixedThreadPool(playersList.length);
-
         try {
             List<Future<String[]>> list = new ArrayList<Future<String[]>>();
 
@@ -68,9 +74,15 @@ public class CheckStatusTask implements Runnable {
 
     }
 
+    /**
+     * Метод проверяет, все ли игроки доступны для игры
+     *
+     * @param playersStatusMap - Map, в котором содержатся пары "Игрок - текущий статус".
+     * @return true, если все игроки имеют статус READY. false, елси хотя бы один игрок имеет другой статус
+     */
     private static boolean checkIfAllPlayersAvailable(Map<String, String> playersStatusMap) {
         boolean isAllPlayersAvailable = true;
-        for (Map.Entry<String, String> playersStatusEntry :  playersStatusMap.entrySet()) {
+        for (Map.Entry<String, String> playersStatusEntry : playersStatusMap.entrySet()) {
             if (!playersStatusEntry.getValue().equals(CheckStatusTask.STATUS_READY)) {
                 isAllPlayersAvailable = false;
                 showPlayersStatus(playersStatusMap);
@@ -80,19 +92,30 @@ public class CheckStatusTask implements Runnable {
         return isAllPlayersAvailable;
     }
 
+    /**
+     * Вывод статуса всех игроков
+     *
+     * @param playersStatusMap - Map, в котором содержатся пары "Игрок - текущий статус".
+     */
     private static void showPlayersStatus(Map<String, String> playersStatusMap) {
-        for (Map.Entry<String, String> entry :  playersStatusMap.entrySet()) {
+        for (Map.Entry<String, String> entry : playersStatusMap.entrySet()) {
             System.out.println(entry.getKey() + " status: " + entry.getValue());
         }
         System.out.println();
     }
 
+    /**
+     * Поток для проверки статуса одного конкретного игрока.
+     */
     private class PlayerStatusTester implements Callable<String[]> {
 
         private final String URL = "http://rd.iskrauraltel.ru:33388/simple-test/";
         private final int TIMEOUT = 5;
         private String player;
 
+        /**
+         * @param player игрок, чей статус будет проверен
+         */
         public PlayerStatusTester(String player) {
             this.player = player;
         }
@@ -103,7 +126,6 @@ public class CheckStatusTask implements Runnable {
                     .setConnectTimeout(1000 * TIMEOUT)
                     .setSocketTimeout(1000 * TIMEOUT)
                     .build();
-
             HttpClientBuilder builder = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig);
             CloseableHttpClient httpClient = builder.build();
 
@@ -115,11 +137,11 @@ public class CheckStatusTask implements Runnable {
                 String line = "";
                 while ((line = rd.readLine()) != null) {
                     if (line.equals(STATUS_AWAY)) {
-                        return new String[] {player,STATUS_AWAY};
+                        return new String[]{player, STATUS_AWAY};
                     } else if (line.equals(STATUS_BUSY)) {
-                        return new String[] {player, STATUS_BUSY};
+                        return new String[]{player, STATUS_BUSY};
                     } else if (line.equals(STATUS_READY)) {
-                            return new String[] {player, STATUS_READY};
+                        return new String[]{player, STATUS_READY};
                     }
                 }
             } catch (IOException e) {
@@ -131,7 +153,7 @@ public class CheckStatusTask implements Runnable {
                     e.printStackTrace();
                 }
             }
-            return new String[] {player,STATUS_OFFLINE};
+            return new String[]{player, STATUS_OFFLINE};
         }
     }
 }
