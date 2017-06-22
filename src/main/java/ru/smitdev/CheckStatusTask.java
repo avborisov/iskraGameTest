@@ -14,51 +14,56 @@ import java.util.concurrent.*;
 
 public class CheckStatusTask implements Runnable {
 
-    private final String[] players = new String[]{"stretch", "jessie", "wheezy", "squeeze",
-            "lenny", "etch", "sarge", "woody", "potato", "slink", "hamm"};
-
     public static final String STATUS_AWAY = "AWAY";
     public static final String STATUS_BUSY = "BUSY";
     public static final String STATUS_READY = "READY";
     public static final String STATUS_OFFLINE = "OFFLINE";
 
+    private String[] playersList;
+
+    public CheckStatusTask(String[] playersList) {
+        this.playersList = playersList;
+    }
+
     public void run() {
 
         System.out.println(new Date()+ ": " + "Check players status...");
 
-        Map<String, String> statusList = new HashMap();
-        ExecutorService executor = Executors.newFixedThreadPool(11);
-        List<Future<String[]>> list = new ArrayList<Future<String[]>>();
+        ExecutorService executor = Executors.newFixedThreadPool(playersList.length);
 
-        for (int i = 0; i < players.length; i++) {
-            Callable<String[]> callable = new PlayerStatusTester(players[i]);
+        try {
+            List<Future<String[]>> list = new ArrayList<Future<String[]>>();
 
-            Future<String[]> future = executor.submit(callable);
-            list.add(future);
-        }
+            for (int i = 0; i < playersList.length; i++) {
+                Callable<String[]> callable = new PlayerStatusTester(playersList[i]);
 
-        for (Future<String[]> future : list) {
-            try {
-                String[] futureResult = future.get();
-                String player = futureResult[0];
-                String playerStatus = futureResult[1];
-                statusList.put(player, playerStatus);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            } catch (ExecutionException e) {
-                e.printStackTrace();
+                Future<String[]> future = executor.submit(callable);
+                list.add(future);
             }
-        }
 
-        executor.shutdown();
+            Map<String, String> playersStatusList = new HashMap();
+            for (Future<String[]> future : list) {
+                try {
+                    String[] futureResult = future.get();
+                    String player = futureResult[0];
+                    String playerStatus = futureResult[1];
+                    playersStatusList.put(player, playerStatus);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (ExecutionException e) {
+                    e.printStackTrace();
+                }
+            }
 
-        if (checkIfAllPlayersAvailable(statusList)) {
+            if (checkIfAllPlayersAvailable(playersStatusList)) {
+                System.out.println("You can play now!");
+                System.out.println();
+            } else {
+                System.out.println("Not all players are available...");
+                System.out.println();
+            }
+        } finally {
             executor.shutdown();
-            System.out.println("You can play now!");
-            System.out.println();
-        } else {
-            System.out.println("Not all players are available...");
-            System.out.println();
         }
 
     }
@@ -93,8 +98,12 @@ public class CheckStatusTask implements Runnable {
         }
 
         public String[] call() throws Exception {
-            RequestConfig requestConfig = RequestConfig.custom().setConnectionRequestTimeout(1000 * TIMEOUT).
-                    setConnectTimeout(1000 * TIMEOUT).setSocketTimeout(1000 * TIMEOUT).build();
+            RequestConfig requestConfig = RequestConfig.custom()
+                    .setConnectionRequestTimeout(1000 * TIMEOUT)
+                    .setConnectTimeout(1000 * TIMEOUT)
+                    .setSocketTimeout(1000 * TIMEOUT)
+                    .build();
+
             HttpClientBuilder builder = HttpClientBuilder.create().setDefaultRequestConfig(requestConfig);
             CloseableHttpClient httpClient = builder.build();
 
@@ -105,7 +114,6 @@ public class CheckStatusTask implements Runnable {
                 BufferedReader rd = new BufferedReader(new InputStreamReader(response.getEntity().getContent()));
                 String line = "";
                 while ((line = rd.readLine()) != null) {
-                    System.out.println(line);
                     if (line.equals(STATUS_AWAY)) {
                         return new String[] {player,STATUS_AWAY};
                     } else if (line.equals(STATUS_BUSY)) {
