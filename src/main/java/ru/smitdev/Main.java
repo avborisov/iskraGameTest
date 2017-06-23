@@ -11,11 +11,5 @@ public class Main {
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
         FindNotReadyPlayersTask findNotReadyPlayersTask = new FindNotReadyPlayersTask(players);
         executor.scheduleAtFixedRate(findNotReadyPlayersTask, 0,10, TimeUnit.SECONDS);
-
-        try {
-            Thread.sleep(Long.MAX_VALUE);
-        } catch (InterruptedException e) {
-            findNotReadyPlayersTask.shutdown();
-        }
     }
 }
