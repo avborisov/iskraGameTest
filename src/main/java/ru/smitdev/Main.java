@@ -8,8 +8,15 @@ public class Main {
         String[] players = new String[]{"stretch", "jessie", "wheezy", "squeeze",
                 "lenny", "etch", "sarge", "woody", "potato", "slink", "hamm"};
 
-        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-        FindNotReadyPlayersTask findNotReadyPlayersTask = new FindNotReadyPlayersTask(players);
-        executor.scheduleAtFixedRate(findNotReadyPlayersTask, 0,10, TimeUnit.SECONDS);
+        final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        final FindNotReadyPlayersTask task = new FindNotReadyPlayersTask(players);
+        executor.scheduleAtFixedRate(task, 0,10, TimeUnit.SECONDS);
+
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            public void run() {
+                task.shutdownNow();
+                executor.shutdownNow();
+            }
+        });
     }
 }

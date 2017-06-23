@@ -115,8 +115,8 @@ public class FindNotReadyPlayersTask implements Runnable {
         return HttpClientBuilder.create().setDefaultRequestConfig(requestConfig);
     }
 
-    public void shutdown() {
-        fixedThreadPool.shutdown();
+    public void shutdownNow() {
+        fixedThreadPool.shutdownNow();
     }
 
     /**
