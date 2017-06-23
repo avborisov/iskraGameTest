@@ -28,56 +28,50 @@ public class FindNotReadyPlayersTask implements Runnable {
     private static HttpClientBuilder httpClientBuilder = initHttpClientBuilder();
 
     private String[] playersList;
+    private ExecutorService fixedThreadPool;
 
     /**
      * @param playersList список игроков для проверки доступности
      */
     public FindNotReadyPlayersTask(String[] playersList) {
         this.playersList = playersList;
-
+        this.fixedThreadPool = Executors.newFixedThreadPool(playersList.length);
     }
 
     public void run() {
 
         System.out.println(new Date() + ": " + "Check players status...");
 
-        ExecutorService fixedThreadPool = Executors.newFixedThreadPool(playersList.length);
-        try {
-            List<Future<String[]>> list = new ArrayList<Future<String[]>>();
+        List<Future<String[]>> list = new ArrayList<Future<String[]>>();
+        for (int i = 0; i < playersList.length; i++) {
+            Callable<String[]> callable = new PlayerStatusTester(playersList[i]);
 
-            for (int i = 0; i < playersList.length; i++) {
-                Callable<String[]> callable = new PlayerStatusTester(playersList[i]);
-
-                Future<String[]> future = fixedThreadPool.submit(callable);
-                list.add(future);
-            }
-
-            Map<String, String> playersStatusList = new HashMap();
-            for (Future<String[]> future : list) {
-                try {
-                    String[] futureResult = future.get();
-                    String player = futureResult[0];
-                    String playerStatus = futureResult[1];
-                    playersStatusList.put(player, playerStatus);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                } catch (ExecutionException e) {
-                    e.printStackTrace();
-                }
-            }
-
-            if (checkIfAllPlayersAvailable(playersStatusList)) {
-                System.out.println("All players are available! You can play now!");
-                System.out.println();
-            } else {
-                System.out.println("Not all players are available:");
-                showNotReadyPlayersStatus(playersStatusList);
-                System.out.println();
-            }
-        } finally {
-            fixedThreadPool.shutdown();
+            Future<String[]> future = fixedThreadPool.submit(callable);
+            list.add(future);
         }
 
+        Map<String, String> playersStatusList = new HashMap();
+        for (Future<String[]> future : list) {
+            try {
+                String[] futureResult = future.get();
+                String player = futureResult[0];
+                String playerStatus = futureResult[1];
+                playersStatusList.put(player, playerStatus);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            } catch (ExecutionException e) {
+                e.printStackTrace();
+            }
+        }
+
+        if (checkIfAllPlayersAvailable(playersStatusList)) {
+            System.out.println("All players are available! You can play now!");
+            System.out.println();
+        } else {
+            System.out.println("Not all players are available:");
+            showNotReadyPlayersStatus(playersStatusList);
+            System.out.println();
+        }
     }
 
     /**
@@ -119,6 +113,10 @@ public class FindNotReadyPlayersTask implements Runnable {
                 .setSocketTimeout(1000 * TIMEOUT)
                 .build();
         return HttpClientBuilder.create().setDefaultRequestConfig(requestConfig);
+    }
+
+    public void shutdown() {
+        fixedThreadPool.shutdown();
     }
 
     /**

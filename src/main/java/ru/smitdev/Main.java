@@ -9,6 +9,13 @@ public class Main {
                 "lenny", "etch", "sarge", "woody", "potato", "slink", "hamm"};
 
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-        executor.scheduleWithFixedDelay(new FindNotReadyPlayersTask(players), 0,5, TimeUnit.SECONDS);
+        FindNotReadyPlayersTask findNotReadyPlayersTask = new FindNotReadyPlayersTask(players);
+        executor.scheduleAtFixedRate(findNotReadyPlayersTask, 0,10, TimeUnit.SECONDS);
+
+        try {
+            Thread.sleep(Long.MAX_VALUE);
+        } catch (InterruptedException e) {
+            findNotReadyPlayersTask.shutdown();
+        }
     }
 }
