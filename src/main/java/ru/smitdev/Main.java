@@ -1,5 +1,6 @@
 package ru.smitdev;
 
+
 import java.util.concurrent.*;
 
 public class Main {
@@ -10,12 +11,16 @@ public class Main {
 
         final ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
         final FindNotReadyPlayersTask task = new FindNotReadyPlayersTask(players);
-        executor.scheduleAtFixedRate(task, 0,10, TimeUnit.SECONDS);
+        executor.scheduleAtFixedRate(task, 0, 10, TimeUnit.SECONDS);
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
-                task.shutdownNow();
-                executor.shutdownNow();
+                System.out.println("Waiting for terminate...");
+                task.shutdown();
+                executor.shutdown();
+                try {
+                    executor.awaitTermination(10, TimeUnit.SECONDS);
+                } catch (InterruptedException ignored) {}
             }
         });
     }

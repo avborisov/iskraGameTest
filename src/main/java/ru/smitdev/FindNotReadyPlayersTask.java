@@ -115,8 +115,12 @@ public class FindNotReadyPlayersTask implements Runnable {
         return HttpClientBuilder.create().setDefaultRequestConfig(requestConfig);
     }
 
-    public void shutdownNow() {
-        fixedThreadPool.shutdownNow();
+    public void shutdown() {
+        fixedThreadPool.shutdown();
+        try {
+            fixedThreadPool.awaitTermination(5, TimeUnit.SECONDS);
+        } catch (InterruptedException ignored) {
+        }
     }
 
     /**
@@ -152,7 +156,7 @@ public class FindNotReadyPlayersTask implements Runnable {
                         return new String[]{player, STATUS_READY};
                     }
                 }
-            } catch (IOException e) {
+            } catch (IOException ignored) {
                 //timeout exception, status OFFLINE
             } finally {
                 try {
